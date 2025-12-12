@@ -75,6 +75,10 @@ class FuzzlessApp(App):
         if self.pager:
             self.pager.scroll_by(self.pager.size.height // 2, move_cursor=False)
 
+    def action_revcomp(self) -> None:
+        if self.pager:
+            self.pager.revcomp()
+
     def action_pg_up(self) -> None:
         if self.pager:
             self.pager.scroll_by(-(self.pager.size.height // 2), move_cursor=False)

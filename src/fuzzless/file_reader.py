@@ -29,6 +29,7 @@ class Record:
 
 
 FileEOF = Literal["eof"]
+revcomp_lookup = str.maketrans("ACGTacgt", "TGCAtgca")
 
 
 def soft_wrap_line(line: list[Segment], width: int) -> list[list[Segment]]:
@@ -94,10 +95,18 @@ class FileReader:
                 ],
                 self.width,
             )
-            seq = soft_wrap_line([Segment(rec.seq)], self.width - 1)
-            padded_seq = [[Segment(" ")] + line for line in seq]
 
-            lines = [*seq_id, *padded_seq]
+            fwd_rev_segment = Segment(
+                " " + ("→" if rec.direction == "fwd" else "←") + " ",
+                Style(color="green" if rec.direction == "fwd" else "deep_pink3"),
+            )
+
+            padded_seqid = [[fwd_rev_segment] + line for line in seq_id]
+
+            seq_read = soft_wrap_line([Segment(rec.seq)], self.width - 1)
+            padded_seq = [[fwd_rev_segment, Segment(" ")] + line for line in seq_read]
+
+            lines = [*padded_seqid, *padded_seq]
             # print(lines)
             self.segment_cache[read_id] = lines
 
@@ -186,6 +195,17 @@ class FileReader:
 
             rec = Record(seq, qual, id, "fwd")
             self.read_buffer.append(rec)
+
+    def revcomp_read(self, read_id: int) -> None:
+        if read_id < 0 or read_id >= len(self.read_buffer):
+            raise IndexError("Read ID out of range.")
+
+        rec = self.read_buffer[read_id]
+        rec.seq = rec.seq.translate(revcomp_lookup)[::-1]
+        rec.qual = rec.qual[::-1]
+        rec.direction = "rev" if rec.direction == "fwd" else "fwd"
+
+        self.segment_cache.pop(read_id, None)
 
     def close(self) -> None:
         """Close the file handle."""
