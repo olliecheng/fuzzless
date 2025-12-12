@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fuzzless"
+version = "0.1.0"
+description = "A simple Hello World Textual TUI application"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "textual>=6.8.0",
+]
+
+[project.scripts]
+fuzzless = "fuzzless.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fuzzless"]
+
+[dependency-groups]
+dev = [
+    "biopython>=1.86",
+    "textual-dev>=1.8.0",
+]
