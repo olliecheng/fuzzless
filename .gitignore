@@ -2,6 +2,7 @@ CLAUDE.md
 moby_dick.txt
 test_file.txt
 test.fastq
+large_test.fastq
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

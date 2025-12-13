@@ -43,7 +43,6 @@ class BottomTabbedContent(TabbedContent, can_focus=False):
         ct.can_focus_children = False
 
     def _on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        print("activate")
         super()._on_tabs_tab_activated(event)
         print(self.active_pane)
         print(self.active_pane.size)

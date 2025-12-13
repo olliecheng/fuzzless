@@ -9,6 +9,7 @@ description = "A simple Hello World Textual TUI application"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "regex>=2025.11.3",
     "textual>=6.8.0",
 ]
 

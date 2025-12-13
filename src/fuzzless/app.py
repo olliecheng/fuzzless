@@ -60,7 +60,7 @@ class FuzzlessApp(App):
         """
         super().__init__()
         self.filepath = filepath
-        self.file_reader = FileReader(filepath)
+        self.file_reader = FileReader(self, filepath)
         self.pager: PagerWidget | None = None
 
     def compose(self) -> ComposeResult:
@@ -124,14 +124,14 @@ class FuzzlessApp(App):
             {
                 "label": "TSO",
                 "max_edit_dist": 3,
-                "pattern": "AGATCGGAAGAGCGTCGTGTAG",
+                "pattern": "TGGTATCAACGCAGAGTACATGGG",
                 "colour": "coral",
                 "revcomp": True,
             },
             {
-                "label": "PolyA",
+                "label": "PolyT",
                 "max_edit_dist": 1,
-                "pattern": "AAAAAAAAAAAA",
+                "pattern": "TTTTTTTTTTTT",
                 "colour": "deepskyblue",
                 "revcomp": True,
             },
@@ -149,8 +149,8 @@ class FuzzlessApp(App):
 
     def bindings_changed(self, _screen: any) -> None:
         # print("app")
-        print(_screen.focused)
         # self.query_one(BottomTabbedContent).active_pane.children[0].focus()
+        pass
 
 
 def main():

@@ -3,10 +3,15 @@
 from pathlib import Path
 from typing import Optional, Literal
 
+from textual.color import Color as TextualColor
+from rich.color import Color as RichColor
 from rich.segment import Segment
 from rich.style import Style
 
 from dataclasses import dataclass
+
+import regex
+from functools import lru_cache
 
 
 @dataclass
@@ -26,6 +31,8 @@ class Record:
 
 FileEOF = Literal["eof"]
 revcomp_lookup = str.maketrans("ACGTacgt", "TGCAtgca")
+
+pattern_regex = {}
 
 
 def soft_wrap_line(line: list[Segment], width: int) -> list[list[Segment]]:
@@ -48,7 +55,7 @@ def soft_wrap_line(line: list[Segment], width: int) -> list[list[Segment]]:
 class FileReader:
     """Reads lines from a file on-demand with LRU caching and read-ahead buffering."""
 
-    def __init__(self, filepath: str, cache_size: int = 1000, readahead: int = 50):
+    def __init__(self, app, filepath: str, cache_size: int = 1000, readahead: int = 50):
         """Initialize the file reader.
 
         Args:
@@ -56,6 +63,7 @@ class FileReader:
             cache_size: Maximum number of lines to keep in cache
             readahead: Number of lines to read ahead when accessing a line
         """
+        self.app = app
         self.filepath = Path(filepath)
         # self._file = open(self.filepath, "r", encoding="utf-8", errors="replace")
 
@@ -99,7 +107,9 @@ class FileReader:
 
             padded_seqid = [[fwd_rev_segment] + line for line in seq_id]
 
-            seq_read = soft_wrap_line([Segment(rec.seq)], self.width - 1)
+            highlighted_read = self.highlight_read(rec.seq)
+
+            seq_read = soft_wrap_line(highlighted_read, self.width - 1)
             padded_seq = [[fwd_rev_segment, Segment(" ")] + line for line in seq_read]
 
             lines = [*padded_seqid, *padded_seq]
@@ -197,7 +207,7 @@ class FileReader:
             raise IndexError("Read ID out of range.")
 
         rec = self.read_buffer[read_id]
-        rec.seq = rec.seq.translate(revcomp_lookup)[::-1]
+        rec.seq = revcomp(rec.seq)
         rec.qual = rec.qual[::-1]
         rec.direction = "rev" if rec.direction == "fwd" else "fwd"
 
@@ -208,6 +218,74 @@ class FileReader:
         if self._file and not self._file.closed:
             self._file.close()
 
+    @lru_cache(maxsize=50000)
+    def search(self, pattern: tuple[str, int], text: str) -> Optional[dict]:
+        pattern_str, max_edit_dist = pattern
+
+        if pattern not in pattern_regex:
+            if max_edit_dist == 0:
+                r = regex.compile(pattern_str, regex.IGNORECASE)
+            else:
+                r = regex.compile(
+                    "(?:" + pattern_str + "){e<=" + str(max_edit_dist) + "}",
+                    regex.BESTMATCH | regex.IGNORECASE,
+                )
+
+            pattern_regex[pattern] = r
+        r = pattern_regex[pattern]
+
+        match = r.search(text)
+        if match is None:
+            return None
+
+        return {
+            "start": match.span()[0],
+            "end": match.span()[1],
+            "edit_dist": sum(match.fuzzy_counts),
+        }
+
+    def highlight_read(self, read: str) -> list[Segment]:
+        patterns = self.app.patterns.patterns
+
+        length = len(read)
+        line = [Segment(read)]
+        if not patterns:
+            return
+
+        for pattern in reversed(patterns):
+            pattern_seq = pattern["pattern"]
+            to_search = (
+                [(True, pattern_seq)] + [(False, revcomp(pattern_seq))]
+                if pattern["revcomp"]
+                else []
+            )
+            for reverse, pattern_seq in to_search:
+                matches = self.search((pattern_seq, pattern["max_edit_dist"]), read)
+                if matches is not None:
+                    [a, h, b] = Segment.divide(
+                        line, [matches["start"], matches["end"], length]
+                    )
+
+                    colour_textual = TextualColor.parse(pattern["colour"])
+                    colour_rich = RichColor.from_rgb(
+                        colour_textual.r, colour_textual.g, colour_textual.b
+                    )
+
+                    h_new = Segment.apply_style(
+                        h,
+                        Style(
+                            color=colour_rich,
+                            reverse=reverse,
+                        ),
+                    )
+                    line = [*a, *h_new, *b]
+
+        return line
+
     def __del__(self):
         """Ensure file is closed when object is garbage collected."""
         self.close()
+
+
+def revcomp(seq: str) -> str:
+    return seq.translate(revcomp_lookup)[::-1]

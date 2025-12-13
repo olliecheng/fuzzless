@@ -148,7 +148,6 @@ class PagerWidget(Widget, can_focus=True):
 
         is_at_top = self.cursor_loc == 0 and lines < 0
         is_at_bottom = self.cursor_loc >= self.size.height - 3 and lines > 0
-        print(self.cursor_loc, self.size.height)
 
         new_viewport_loc = self.file_reader.virtual_loc_change(self.viewport_loc, lines)
 
@@ -165,7 +164,11 @@ class PagerWidget(Widget, can_focus=True):
 
         else:
             # move cursor_loc, don't move viewport
-            if new_viewport_loc.type == "data":
+
+            # at start of file, can't move viewport up
+            if self.viewport_loc.read == 0 and self.viewport_loc.line == 0:
+                self.cursor_loc = max(0, self.cursor_loc + lines)
+            elif new_viewport_loc.type == "data":
                 self.cursor_loc += lines
 
         self.refresh()
@@ -196,7 +199,6 @@ class PagerWidget(Widget, can_focus=True):
         self.scroll_by(-1)
 
     def action_next_tab(self) -> None:
-        print("next")
         self._next_tab()
 
     def action_cursor_down(self) -> None:
