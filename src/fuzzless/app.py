@@ -48,19 +48,7 @@ class FuzzlessApp(App):
     }
     """
 
-    BINDINGS = [
-        Binding("q", "quit", "quit", priority=True),
-        # ("up", "cursor_up", ""),
-        # ("down", "cursor_down", ""),
-        # ("ctrl+d", "pg_down", "↓↓"),
-        # ("ctrl+u", "pg_up", "↑↑"),
-        # Binding(
-        #     "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
-        # ),
-        # Binding("space", "toggle_fold", "fold"),
-        # Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
-        # Binding("tab", "next_tab", "next tab", show=True),
-    ]
+    BINDINGS = [Binding("q", "quit", "quit", priority=True)]
 
     SCREENS = {"configure": ConfigurePattern}
 

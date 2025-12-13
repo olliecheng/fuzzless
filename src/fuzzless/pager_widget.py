@@ -98,9 +98,25 @@ class PagerWidget(Widget, can_focus=True):
         line_loc = self.file_reader.virtual_loc_change(self.viewport_loc, y)
         if line_loc.type == "start":
             return Strip.blank(self.size.width)
+
         if line_loc.type == "eof":
+            is_active = self.cursor_loc == y
+
+            if is_active:
+                line_style = Style(color="bright_white", bold="true", bgcolor="purple3")
+            else:
+                line_style = Style(
+                    color="pale_turquoise1",
+                    bgcolor="grey0",
+                )
+
+            line_number_segment = Segment(f"      ", line_style)
+
             return Strip(
-                [Segment("       ~ EOF ~", Style(color="red3", italic=True))]
+                [
+                    line_number_segment,
+                    Segment(" ~ EOF ~", Style(color="red3", italic=True)),
+                ]
             ).adjust_cell_length(self.size.width)
 
         content_segments = self.file_reader.render_segment(line_loc)
@@ -131,24 +147,25 @@ class PagerWidget(Widget, can_focus=True):
         """Move selection to the previous line."""
 
         is_at_top = self.cursor_loc == 0 and lines < 0
-        is_at_bottom = self.cursor_loc >= self.size.height - 1 and lines > 0
+        is_at_bottom = self.cursor_loc >= self.size.height - 3 and lines > 0
+        print(self.cursor_loc, self.size.height)
+
+        new_viewport_loc = self.file_reader.virtual_loc_change(self.viewport_loc, lines)
 
         if is_at_top or is_at_bottom or not move_cursor:
-            new_loc = self.file_reader.virtual_loc_change(self.viewport_loc, lines)
-            if new_loc.type == "data":
-                self.viewport_loc = new_loc
+            if new_viewport_loc.type == "data":
+                self.viewport_loc = new_viewport_loc
 
             # pgdn/pgup at edge of viewport: move cursor
             # in this case, we should move the cursor as far as we can
             elif not move_cursor:
-                if lines < 0:
+                if lines < 0 and new_viewport_loc.type == "start":
                     self.cursor_loc = 0
+                    self.viewport_loc = ReadLineLocation(0, 0)
+
         else:
             # move cursor_loc, don't move viewport
-            new_loc = self.file_reader.virtual_loc_change(
-                self.viewport_loc, self.cursor_loc + lines
-            )
-            if not new_loc.type == "eof":
+            if new_viewport_loc.type == "data":
                 self.cursor_loc += lines
 
         self.refresh()
@@ -187,10 +204,10 @@ class PagerWidget(Widget, can_focus=True):
         self.scroll_by(1)
 
     def action_pg_down(self) -> None:
-        self.scroll_by(self.size.height // 2, move_cursor=False)
+        self.scroll_by((self.size.height - 3) // 2, move_cursor=False)
 
     def action_revcomp(self) -> None:
         self.revcomp()
 
     def action_pg_up(self) -> None:
-        self.scroll_by(-(self.size.height // 2), move_cursor=False)
+        self.scroll_by(-((self.size.height - 3) // 2), move_cursor=False)
