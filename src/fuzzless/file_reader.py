@@ -1,15 +1,11 @@
 """Lazy file reader with LRU caching for efficient handling of large files."""
 
-from collections import OrderedDict
-import itertools
 from pathlib import Path
 from typing import Optional, Literal
 
 from rich.segment import Segment
 from rich.style import Style
-from textual.strip import Strip
 
-import math
 from dataclasses import dataclass
 
 

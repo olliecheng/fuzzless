@@ -5,16 +5,31 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Tab, Tabs
+from textual.widgets import (
+    Footer,
+    Tab,
+    Tabs,
+    ContentSwitcher,
+    TabbedContent,
+    TabPane,
+    Static,
+)
+from textual.containers import Vertical, VerticalGroup, HorizontalGroup
 
 from fuzzless.file_reader import FileReader
 from fuzzless.pager_widget import PagerWidget
+from fuzzless.patterns_widget import PatternsWidget, ConfigurePattern
+from fuzzless.presets_widget import PresetsWidget
+from fuzzless.vertical_tabs import UpsideDownTabs, BottomTabbedContent
 
 
 class FuzzlessApp(App):
     """A pager application for viewing large text files efficiently."""
 
     CSS = """
+    FuzzlessApp {
+        background: black; 
+    }
     PagerWidget {
         width: 100%;
         height: 1fr;
@@ -23,21 +38,31 @@ class FuzzlessApp(App):
     Footer {
         background: $boost;
     }
+
+    #tabs-list {
+        dock: bottom;
+    }
+
+    BottomTabbedContent {
+        height: 100%;
+    }
     """
 
     BINDINGS = [
-        ("q", "quit", "quit"),
-        ("up", "cursor_up", ""),
-        ("down", "cursor_down", ""),
-        ("ctrl+d", "pg_down", "↓↓"),
-        ("ctrl+u", "pg_up", "↑↑"),
-        Binding(
-            "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
-        ),
-        Binding("space", "toggle_fold", "fold"),
-        Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
-        Binding("tab", "next_tab", "next tab", show=True),
+        Binding("q", "quit", "quit", priority=True),
+        # ("up", "cursor_up", ""),
+        # ("down", "cursor_down", ""),
+        # ("ctrl+d", "pg_down", "↓↓"),
+        # ("ctrl+u", "pg_up", "↑↑"),
+        # Binding(
+        #     "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
+        # ),
+        # Binding("space", "toggle_fold", "fold"),
+        # Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
+        # Binding("tab", "next_tab", "next tab", show=True),
     ]
+
+    SCREENS = {"configure": ConfigurePattern}
 
     def __init__(self, filepath: str):
         """Initialize the app with a file path.
@@ -52,40 +77,92 @@ class FuzzlessApp(App):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        self.pager = PagerWidget(self.file_reader)
-        yield self.pager
-        yield Footer(show_command_palette=False, compact=True)
-        yield Tabs(
-            Tab("    reads    ", id="reads"),
-            Tab(" patterns ", id="patterns"),
-            Tab(" presets ", id="presets"),
-        )
+        self.content_pane = BottomTabbedContent()
 
-    def action_cursor_up(self) -> None:
-        """Move selection up."""
-        if self.pager:
-            self.pager.scroll_by(-1)
+        next_tab_fn = self.content_pane.next_tab
+        self.pager = PagerWidget(self.file_reader, next_tab_fn)
+        self.patterns = PatternsWidget(next_tab_fn)
+        self.presets = PresetsWidget(next_tab_fn)
 
-    def action_cursor_down(self) -> None:
-        """Move selection down."""
-        if self.pager:
-            self.pager.scroll_by(1)
+        # with ContentSwitcher(initial="pager"):
+        #     with Vertical(id="pager"):
+        #         yield self.pager
+        #     with Vertical(id="patterns"):
+        #         yield self.patterns
+        #     with Vertical(id="presets"):
+        #         yield self.presets
 
-    def action_pg_down(self) -> None:
-        if self.pager:
-            self.pager.scroll_by(self.pager.size.height // 2, move_cursor=False)
+        # yield Footer(show_command_palette=False, compact=True)
+        # with Horizontal(id="tabs-list"):
+        #     yield Static("    reads    ", id="label_pager")
+        #     yield Static(" patterns ", id="btn_patterns")
+        #     yield Static(" presets ", id="btn_presets")
+        # yield Static("    fuzzless v1", expand=True)
 
-    def action_revcomp(self) -> None:
-        if self.pager:
-            self.pager.revcomp()
+        with self.content_pane:
+            with TabPane("pager"):
+                yield self.pager
+            with TabPane("patterns"):
+                yield self.patterns
+            with TabPane("presets"):
+                yield self.presets
 
-    def action_pg_up(self) -> None:
-        if self.pager:
-            self.pager.scroll_by(-(self.pager.size.height // 2), move_cursor=False)
+        # yield UpsideDownTabs(
+        #     Tab("    reads    ", id="pager"),
+        #     Tab(" patterns ", id="patterns"),
+        #     Tab(" presets ", id="presets"),
+        # )
+
+    def on_tab_activated(self, event: Tabs.TabActivated) -> None:
+        """Handle tab activation events to switch content.
+
+        Args:
+            event: The tab activated event
+        """
+        self.query_one(ContentSwitcher).switch_to(event.tab.id)
+
+    def on_mount(self) -> None:
+        self.screen.bindings_updated_signal.subscribe(self, self.bindings_changed)
+        print("mount")
+
+        patterns = [
+            {
+                "label": "R1",
+                "max_edit_dist": 3,
+                "pattern": "CTACACGACGCTCTTCCGATCT",
+                "colour": "lawngreen",
+                "revcomp": True,
+            },
+            {
+                "label": "TSO",
+                "max_edit_dist": 3,
+                "pattern": "AGATCGGAAGAGCGTCGTGTAG",
+                "colour": "coral",
+                "revcomp": True,
+            },
+            {
+                "label": "PolyA",
+                "max_edit_dist": 1,
+                "pattern": "AAAAAAAAAAAA",
+                "colour": "deepskyblue",
+                "revcomp": True,
+            },
+        ]
+
+        for pattern in patterns:
+            self.patterns.append_pattern(pattern)
 
     def on_unmount(self) -> None:
         """Clean up resources when app is closed."""
         self.file_reader.close()
+
+    def on_bottom_tabbed_content_focus(self, event: any) -> None:
+        print("hello")
+
+    def bindings_changed(self, _screen: any) -> None:
+        # print("app")
+        print(_screen.focused)
+        # self.query_one(BottomTabbedContent).active_pane.children[0].focus()
 
 
 def main():

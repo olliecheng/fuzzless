@@ -1,21 +1,17 @@
 """Pager widget using Textual's Line API for efficient rendering."""
 
-from dataclasses import dataclass
-import itertools
 from rich.segment import Segment
 from rich.style import Style
-from textual.geometry import Size, Offset, Region
-from textual.scroll_view import ScrollView
 from textual.widget import Widget
+from textual.widgets import Footer
 from textual.reactive import var
 from textual.strip import Strip
+from textual.binding import Binding
 
 from fuzzless.file_reader import FileReader, ReadLineLocation
 
-import collections
 
-
-class PagerWidget(Widget):
+class PagerWidget(Widget, can_focus=True):
     """A pager widget that displays file contents with line selection and horizontal scrolling."""
 
     COMPONENT_CLASSES = {
@@ -48,10 +44,24 @@ class PagerWidget(Widget):
     }
     """
 
+    BINDINGS = [
+        ("q", "quit", "quit"),
+        ("up", "cursor_up", ""),
+        ("down", "cursor_down", ""),
+        ("ctrl+d", "pg_down", "↓↓"),
+        ("ctrl+u", "pg_up", "↑↑"),
+        Binding(
+            "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
+        ),
+        Binding("space", "toggle_fold", "fold         "),
+        Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
+        ("tab", "next_tab", "next tab"),
+    ]
+
     viewport_loc = var(ReadLineLocation(0, 0))
     cursor_loc = var(0)
 
-    def __init__(self, file_reader: FileReader):
+    def __init__(self, file_reader: FileReader, next_tab):
         """Initialize the pager widget.
 
         Args:
@@ -59,6 +69,10 @@ class PagerWidget(Widget):
         """
         super().__init__()
         self.file_reader = file_reader
+        self._next_tab = next_tab
+
+    def compose(self):
+        yield Footer(show_command_palette=False, compact=True)
 
     def on_resize(self, event):
         # move cursor if window height has changed
@@ -100,7 +114,7 @@ class PagerWidget(Widget):
         )
 
         if is_active:
-            line_style = Style(color="grey0", bold="true", bgcolor="deep_sky_blue3")
+            line_style = Style(color="bright_white", bold="true", bgcolor="purple3")
         else:
             line_style = Style(
                 color="bright_white" if line_loc.read % 2 else "pale_turquoise1",
@@ -158,3 +172,25 @@ class PagerWidget(Widget):
         if cursor_pos.type == "data":
             self.file_reader.revcomp_read(cursor_pos.read)
             self.refresh()
+
+    # bindings
+    def action_cursor_up(self) -> None:
+        """Move selection up."""
+        self.scroll_by(-1)
+
+    def action_next_tab(self) -> None:
+        print("next")
+        self._next_tab()
+
+    def action_cursor_down(self) -> None:
+        """Move selection down."""
+        self.scroll_by(1)
+
+    def action_pg_down(self) -> None:
+        self.scroll_by(self.size.height // 2, move_cursor=False)
+
+    def action_revcomp(self) -> None:
+        self.revcomp()
+
+    def action_pg_up(self) -> None:
+        self.scroll_by(-(self.size.height // 2), move_cursor=False)
