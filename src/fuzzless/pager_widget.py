@@ -56,7 +56,7 @@ class PagerWidget(Widget, can_focus=True):
         Binding("space", "toggle_fold", "fold         "),
         Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
         Binding("j", "cursor_down", "cursor down", show=False),
-        Binding("j", "cursor_down", "cursor down", show=False),
+        Binding("k", "cursor_up", "cursor up", show=False),
         Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
         ("tab", "next_tab", "next tab"),
     ]

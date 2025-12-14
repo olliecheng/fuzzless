@@ -18,7 +18,7 @@ from textual.containers import Vertical, VerticalGroup, HorizontalGroup
 
 from fuzzless.file_reader import FileReader
 from fuzzless.pager_widget import PagerWidget
-from fuzzless.patterns_widget import PatternsWidget, ConfigurePattern
+from fuzzless.patterns_widget import PatternsWidget, ConfigurePattern, ExportCSV
 from fuzzless.presets_widget import PresetsWidget
 from fuzzless.vertical_tabs import UpsideDownTabs, BottomTabbedContent
 
@@ -50,7 +50,7 @@ class FuzzlessApp(App):
 
     BINDINGS = [Binding("q", "quit", "quit", priority=True)]
 
-    SCREENS = {"configure": ConfigurePattern}
+    SCREENS = {"configure": ConfigurePattern, "export_csv": ExportCSV}
 
     def __init__(self, filepath: str):
         """Initialize the app with a file path.
@@ -71,21 +71,6 @@ class FuzzlessApp(App):
         self.pager = PagerWidget(self.file_reader, next_tab_fn)
         self.patterns = PatternsWidget(next_tab_fn)
         self.presets = PresetsWidget(next_tab_fn)
-
-        # with ContentSwitcher(initial="pager"):
-        #     with Vertical(id="pager"):
-        #         yield self.pager
-        #     with Vertical(id="patterns"):
-        #         yield self.patterns
-        #     with Vertical(id="presets"):
-        #         yield self.presets
-
-        # yield Footer(show_command_palette=False, compact=True)
-        # with Horizontal(id="tabs-list"):
-        #     yield Static("    reads    ", id="label_pager")
-        #     yield Static(" patterns ", id="btn_patterns")
-        #     yield Static(" presets ", id="btn_presets")
-        # yield Static("    fuzzless v1", expand=True)
 
         with self.content_pane:
             with TabPane("pager"):

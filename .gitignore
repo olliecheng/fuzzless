@@ -3,6 +3,7 @@ moby_dick.txt
 test_file.txt
 test.fastq
 large_test.fastq
+patterns.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

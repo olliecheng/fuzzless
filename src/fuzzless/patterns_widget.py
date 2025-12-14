@@ -22,6 +22,8 @@ from textual.screen import ModalScreen
 from rich.text import Text
 
 import json
+import csv
+from pathlib import Path
 
 DEFAULT_COLOURS = [
     "lawngreen",
@@ -180,6 +182,10 @@ class PatternsWidget(Widget, can_focus=True):
         self.patterns_list.index = new_index
         self.app.push_screen("configure")
 
+    def action_export(self) -> None:
+        """Export patterns to CSV file."""
+        self.app.push_screen("export_csv")
+
 
 class ConfigurePattern(ModalScreen):
     BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
@@ -315,3 +321,137 @@ class ConfigurePattern(ModalScreen):
         )
 
         self.app.pop_screen()
+
+
+class ExportCSV(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+
+    DEFAULT_CSS = """
+    ExportCSV {
+        align: center middle;
+    }
+
+    #dialog {
+        padding: 0 1;
+        width: 45;
+        height: 13;
+        border: thick lightseagreen 80%;
+        background: darkslategray;
+
+        grid-size: 2;
+        grid-columns: 15 30;
+        grid-rows: 3 4 3;
+
+        content-align: center top;
+    }
+
+    Label {
+        padding: 1 1;
+        text-style: bold;
+        column-span: 2;
+    }
+
+    Input {
+        margin: 0;
+        width: 41 !important;
+        padding: 0;
+        column-span: 2;
+    }
+
+    Button {
+        margin-left: 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        self.filepath_input = Input(
+            id="filepath", value="patterns.csv", placeholder="~/patterns.csv"
+        )
+        self.filepath_input.on_key = self.on_key
+
+        yield Grid(
+            Label("Export to CSV file"),
+            self.filepath_input,
+            Button("Export", variant="primary", id="export"),
+            Button("Cancel", variant="error", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.app.pop_screen()
+        if event.button.id == "export":
+            self.export_to_csv()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "enter":
+            self.export_to_csv()
+
+    def export_to_csv(self):
+        patterns = self.app.patterns.patterns
+
+        # Check if there are patterns to export
+        if not patterns:
+            self.app.pop_screen()
+            self.app.notify("No patterns to export", severity="warning", timeout=3.0)
+            return
+
+        # Get and resolve file path
+        filepath_str = self.filepath_input.value.strip()
+        if not filepath_str:
+            self.app.pop_screen()
+            self.app.notify("Please enter a file path", severity="error", timeout=3.0)
+            return
+
+        try:
+            # Expand ~ and resolve relative paths
+            filepath = Path(filepath_str).expanduser().resolve()
+
+            # Validate parent directory exists
+            if not filepath.parent.exists():
+                self.app.pop_screen()
+                self.app.notify(
+                    f"Directory not found: {filepath.parent}",
+                    severity="error",
+                    timeout=5.0,
+                )
+                return
+
+            # Write CSV with proper encoding
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=[
+                        "label",
+                        "pattern",
+                        "colour",
+                        "max_edit_dist",
+                        "revcomp",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerows(patterns)
+
+            # Success notification and close modal
+            count = len(patterns)
+            self.app.pop_screen()
+            self.app.notify(
+                f"Exported {count} pattern{'s' if count != 1 else ''} to {filepath}",
+                severity="information",
+                timeout=3.0,
+            )
+
+        except PermissionError:
+            self.app.pop_screen()
+            self.app.notify(
+                f"Permission denied: {filepath_str}", severity="error", timeout=5.0
+            )
+        except ValueError as e:
+            # Catches null bytes and other path errors
+            self.app.pop_screen()
+            self.app.notify(
+                f"Invalid file path: {str(e)}", severity="error", timeout=5.0
+            )
+        except Exception as e:
+            self.app.pop_screen()
+            self.app.notify(f"Export failed: {str(e)}", severity="error", timeout=5.0)
