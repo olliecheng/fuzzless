@@ -257,6 +257,8 @@ class FileReader:
         if not patterns:
             return
 
+        info_labels: list[tuple[int, Segment]] = []
+
         for pattern in reversed(patterns):
             pattern_seq = pattern["pattern"]
             pattern_label = pattern["label"]
@@ -274,6 +276,10 @@ class FileReader:
                     end = match["end"]
                     edit_dist = match["edit_dist"]
 
+                    match_results_text = f"{pattern_label}:{edit_dist}:"
+                    match_results_seg = Segment(match_results_text, Style(reverse=True))
+                    info_labels.append((start, match_results_seg))
+
                     [a, h, b] = Segment.divide(line, [start, end, length])
 
                     colour_textual = TextualColor.parse(pattern["colour"])
@@ -289,10 +295,16 @@ class FileReader:
                         ),
                     )
 
-                    match_results_seg = Segment(
-                        f"{pattern_label}:{edit_dist}:", Style(reverse=True)
-                    )
-                    line = [*a, match_results_seg, *h_new, *b]
+                    line = [*a, *h_new, *b]
+
+        # add information labels - start with earliest label
+        offset = 0
+        info_labels.sort(key=lambda x: x[0])
+        for pos, label in info_labels:
+            [a, b] = Segment.divide(line, [pos + offset, Segment.get_line_length(line)])
+
+            line = [*a, label, *b]
+            offset += label.cell_length
 
         return line
 
