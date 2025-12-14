@@ -55,6 +55,9 @@ class PagerWidget(Widget, can_focus=True):
         ),
         Binding("space", "toggle_fold", "fold         "),
         Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
+        Binding("j", "cursor_down", "cursor down", show=False),
+        Binding("j", "cursor_down", "cursor down", show=False),
+        Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
         ("tab", "next_tab", "next tab"),
     ]
 
@@ -110,12 +113,12 @@ class PagerWidget(Widget, can_focus=True):
                     bgcolor="grey0",
                 )
 
-            line_number_segment = Segment(f"      ", line_style)
+            line_number_segment = Segment("      ", line_style)
 
             return Strip(
                 [
                     line_number_segment,
-                    Segment(" ~ EOF ~", Style(color="red3", italic=True)),
+                    Segment(" ~ EOF ~", Style(color="red3")),
                 ]
             ).adjust_cell_length(self.size.width)
 
@@ -134,9 +137,7 @@ class PagerWidget(Widget, can_focus=True):
         else:
             line_style = Style(
                 color="bright_white" if line_loc.read % 2 else "pale_turquoise1",
-                bold=line_loc.read % 2,
-                italic=not (line_loc.read % 2),
-                bgcolor="grey0",
+                bgcolor="grey23" if line_loc.read % 2 else "grey0",
             )
 
         line_number_segment = Segment(f"{line_loc.read:>6}", line_style)

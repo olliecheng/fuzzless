@@ -98,9 +98,9 @@ class PatternsWidget(Widget, can_focus=True):
         return (
             f"[{colour}]"
             + f"{pattern['pattern']}\n"
-            + f"[b]{pattern['label']}[/b], [i]{pattern['colour']}, edit dist: {pattern['max_edit_dist']}, "
+            + f"[b]{pattern['label']}[/b], {pattern['colour']}, edit dist: {pattern['max_edit_dist']}, "
             + ("fwd + rev" if pattern["revcomp"] else "fwd only")
-            + f"[/i][/{colour}]"
+            + f"[/{colour}]"
         )
 
     def update_pattern(self, index: int, new_pattern: dict) -> None:
@@ -211,7 +211,6 @@ class ConfigurePattern(ModalScreen):
 
     .inline-label {
         padding: 1 1 1 1;
-        text-style: italic;
     }
 
     Input {
@@ -231,7 +230,6 @@ class ConfigurePattern(ModalScreen):
     }
 
     .span-label {
-        text-style: italic;
         padding: 1 1 0 1;
         column-span: 2;
     }
@@ -256,11 +254,11 @@ class ConfigurePattern(ModalScreen):
             id="revcomp", label="Also match reverse complement", compact=True
         )
         yield Grid(
-            Label("[i]Pattern label[/i]", classes="inline-label"),
+            Label("Pattern label", classes="inline-label"),
             self.label_input,
-            Label("[i]Pattern colour[/i]", classes="inline-label"),
+            Label("Pattern colour", classes="inline-label"),
             self.colour_input,
-            Label("[i]Max edit distance[/i]", classes="inline-label"),
+            Label("Max edit distance", classes="inline-label"),
             self.edit_dist_input,
             Label("Sequence pattern", classes="span-label"),
             self.pattern_input,
