@@ -120,6 +120,10 @@ class PatternsWidget(Widget, can_focus=True):
 
         self.app.file_reader.patterns_changed()
 
+    def clear_patterns(self) -> None:
+        self.patterns = []
+        self.patterns_list.clear()
+
     def compose(self) -> ComposeResult:
         # self.datatable = DataTable(zebra_stripes=True, cell_padding=2)
         # self.textarea = TextArea(json.dumps(self.config, indent=1))
@@ -169,3 +173,7 @@ class PatternsWidget(Widget, can_focus=True):
     def action_export(self) -> None:
         """Export patterns to CSV file."""
         self.app.push_screen("export_csv")
+
+    def action_import(self) -> None:
+        """Import patterns from CSV file."""
+        self.app.push_screen("import_csv")

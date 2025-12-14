@@ -225,16 +225,6 @@ class ExportCSVModal(ModalScreen):
             # Expand ~ and resolve relative paths
             filepath = Path(filepath_str).expanduser().resolve()
 
-            # Validate parent directory exists
-            if not filepath.parent.exists():
-                self.app.pop_screen()
-                self.app.notify(
-                    f"Directory not found: {filepath.parent}",
-                    severity="error",
-                    timeout=5.0,
-                )
-                return
-
             # Write CSV with proper encoding
             with open(filepath, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(
@@ -258,18 +248,138 @@ class ExportCSVModal(ModalScreen):
                 severity="information",
                 timeout=3.0,
             )
-
-        except PermissionError:
-            self.app.pop_screen()
-            self.app.notify(
-                f"Permission denied: {filepath_str}", severity="error", timeout=5.0
-            )
-        except ValueError as e:
-            # Catches null bytes and other path errors
-            self.app.pop_screen()
-            self.app.notify(
-                f"Invalid file path: {str(e)}", severity="error", timeout=5.0
-            )
         except Exception as e:
             self.app.pop_screen()
             self.app.notify(f"Export failed: {str(e)}", severity="error", timeout=5.0)
+
+
+class ImportCSVModal(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+
+    DEFAULT_CSS = """
+    ImportCSVModal {
+        align: center middle;
+    }
+
+    #dialog {
+        padding: 0 1;
+        width: 45;
+        height: 15;
+        border: thick lightseagreen 80%;
+        background: darkslategray;
+
+        grid-size: 2;
+        grid-columns: 15 30;
+        grid-rows: 3 3 4 3;
+
+        content-align: center top;
+    }
+
+    Label {
+        padding: 1 1;
+        text-style: bold;
+        column-span: 2;
+    }
+
+    .warning-label {
+        padding: 1 1;
+        color: coral;
+        text-style: bold;
+        column-span: 2;
+    }
+
+    Input {
+        margin: 0;
+        width: 41 !important;
+        padding: 0 1;
+        column-span: 2;
+    }
+
+    Button {
+        margin-left: 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        self.filepath_input = Input(
+            id="filepath", value="patterns.csv", placeholder="patterns.csv"
+        )
+        self.filepath_input.on_key = self.on_key
+
+        yield Grid(
+            Label("Import from CSV file"),
+            self.filepath_input,
+            Label(
+                "WARNING: This will replace ALL existing patterns",
+                classes="warning-label",
+            ),
+            Button("Import", variant="primary", id="import"),
+            Button("Cancel", variant="error", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.app.pop_screen()
+        if event.button.id == "import":
+            self.import_from_csv()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "enter":
+            self.import_from_csv()
+
+    def import_from_csv(self):
+        import csv
+
+        self.app.pop_screen()
+
+        try:
+            # Validate filepath input
+            filepath = self.filepath_input.value.strip()
+            if not filepath:
+                raise Exception("No file path provided")
+            required_fields = {"label", "pattern", "colour", "max_edit_dist", "revcomp"}
+            imported_patterns = 0
+
+            with open(filepath, "r", newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+
+                missing_fields = required_fields - set(reader.fieldnames)
+                if missing_fields:
+                    raise Exception("Missing column(s):", ", ".join(missing_fields))
+
+                self.app.patterns.clear_patterns()
+
+                # Parse rows
+                for _row_num, row in enumerate(
+                    reader, start=2
+                ):  # start=2 to account for header
+                    row["revcomp"] = row["revcomp"].strip().lower()
+
+                    if row["revcomp"] not in ["true", "false"]:
+                        raise Exception("revcomp must be true or false")
+
+                    print("R", row)
+
+                    pattern = {
+                        "label": row["label"],
+                        "pattern": row["pattern"],
+                        "colour": row["colour"],
+                        "max_edit_dist": int(row["max_edit_dist"]),
+                        "revcomp": row["revcomp"] == "true",
+                    }
+
+                    self.app.patterns.append_pattern(pattern)
+                    imported_patterns += 1
+
+                # Check if we got any patterns
+                if not imported_patterns:
+                    raise Exception("CSV file contains no patterns")
+
+            self.app.notify(
+                f"Imported {imported_patterns} pattern{'s' if imported_patterns != 1 else ''}",
+                severity="information",
+                timeout=3.0,
+            )
+        except Exception as e:
+            self.app.notify(f"Import failed: {str(e)}", severity="error", timeout=10.0)
