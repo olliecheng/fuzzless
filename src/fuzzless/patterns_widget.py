@@ -110,6 +110,8 @@ class PatternsWidget(Widget, can_focus=True):
             self.render_pattern(new_pattern)
         )
 
+        self.app.file_reader.patterns_changed()
+
     def append_pattern(self, pattern: dict) -> None:
         print("p1", self.patterns_list)
         if self.patterns_list is None or not self.patterns_list.is_mounted:
@@ -121,12 +123,16 @@ class PatternsWidget(Widget, can_focus=True):
 
         self.patterns_list.append(item)
 
+        self.app.file_reader.patterns_changed()
+
     def remove_pattern(self, index: int) -> None:
         if self.patterns_list is None or not self.patterns_list.is_mounted:
             return
 
         del self.patterns[index]
         self.patterns_list.pop(index)
+
+        self.app.file_reader.patterns_changed()
 
     def compose(self) -> ComposeResult:
         # self.datatable = DataTable(zebra_stripes=True, cell_padding=2)

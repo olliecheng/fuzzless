@@ -7,6 +7,7 @@ from textual.color import Color as TextualColor
 from rich.color import Color as RichColor
 from rich.segment import Segment
 from rich.style import Style
+import time
 
 from dataclasses import dataclass
 
@@ -27,6 +28,8 @@ class Record:
     qual: list[int]
     id: str
     direction: Literal["fwd", "rev"]
+    last_checked_direction: int
+    folded: bool = False
 
 
 FileEOF = Literal["eof"]
@@ -65,9 +68,7 @@ class FileReader:
         """
         self.app = app
         self.filepath = Path(filepath)
-        # self._file = open(self.filepath, "r", encoding="utf-8", errors="replace")
 
-        # self.line_buffer = self._file.read().splitlines()
         self._file = open(self.filepath, "r")
         self.read_buffer: list[Record] = []
 
@@ -77,6 +78,7 @@ class FileReader:
         self.segment_cache = {}
 
         self.total_reads: Optional[int] = None
+        self.pattern_time = time.time()
 
     def rerender(self, new_width: int):
         """Rerender the file with a new width."""
@@ -88,8 +90,16 @@ class FileReader:
 
         # add to cache if not already present
         if read_id not in self.segment_cache:
-            # self.fill_read_buf(read_id)
+            # do we need to check if the patterns have changed?
             rec = self.read_buffer[read_id]
+
+            if rec.last_checked_direction != self.pattern_time:
+                rec.last_checked_direction = self.pattern_time
+                fw, rv = self.count_matches(rec)
+
+                # reverse complement is a better match, take the revcomp
+                if len(rv) > len(fw) or (len(rv) == len(fw) and sum(rv) < sum(fw)):
+                    self.revcomp_read(read_id)
 
             seq_id = soft_wrap_line(
                 [
@@ -113,7 +123,6 @@ class FileReader:
             padded_seq = [[fwd_rev_segment, Segment(" ")] + line for line in seq_read]
 
             lines = [*padded_seqid, *padded_seq]
-            # print(lines)
             self.segment_cache[read_id] = lines
 
         return self.segment_cache[read_id]
@@ -199,7 +208,7 @@ class FileReader:
             self._file.readline()
             qual = self._file.readline().rstrip("\n")
 
-            rec = Record(seq, qual, id, "fwd")
+            rec = Record(seq, qual, id, "fwd", last_checked_direction=0, folded=False)
             self.read_buffer.append(rec)
 
     def revcomp_read(self, read_id: int) -> None:
@@ -254,17 +263,22 @@ class FileReader:
 
         for pattern in reversed(patterns):
             pattern_seq = pattern["pattern"]
+            pattern_label = pattern["label"]
+
             to_search = (
                 [(True, pattern_seq)] + [(False, revcomp(pattern_seq))]
                 if pattern["revcomp"]
                 else []
             )
-            for reverse, pattern_seq in to_search:
-                matches = self.search((pattern_seq, pattern["max_edit_dist"]), read)
-                if matches is not None:
-                    [a, h, b] = Segment.divide(
-                        line, [matches["start"], matches["end"], length]
-                    )
+
+            for fwd, pattern_seq in to_search:
+                match = self.search((pattern_seq, pattern["max_edit_dist"]), read)
+                if match is not None:
+                    start = match["start"]
+                    end = match["end"]
+                    edit_dist = match["edit_dist"]
+
+                    [a, h, b] = Segment.divide(line, [start, end, length])
 
                     colour_textual = TextualColor.parse(pattern["colour"])
                     colour_rich = RichColor.from_rgb(
@@ -275,16 +289,49 @@ class FileReader:
                         h,
                         Style(
                             color=colour_rich,
-                            reverse=reverse,
+                            reverse=fwd,
                         ),
                     )
-                    line = [*a, *h_new, *b]
+
+                    match_results_seg = Segment(
+                        f"{pattern_label}:{edit_dist}:", Style(reverse=True)
+                    )
+                    line = [*a, match_results_seg, *h_new, *b]
 
         return line
+
+    def count_matches(self, rec: Record) -> tuple[int, int]:
+        patterns = self.app.patterns.patterns
+        if not patterns:
+            return
+
+        # always start with the forward sequence
+        read = rec.seq if rec.direction == "fwd" else revcomp(rec.seq)
+
+        fwd_edit_dists = []
+        rev_edit_dists = []
+
+        for pattern in patterns:
+            pattern_seq = pattern["pattern"]
+            max_dist = pattern["max_edit_dist"]
+
+            match_fwd = self.search((pattern_seq, max_dist), read)
+            match_rev = self.search((revcomp(pattern_seq), max_dist), read)
+
+            if match_fwd is not None:
+                fwd_edit_dists.append(match_fwd["edit_dist"])
+            elif match_rev is not None:
+                rev_edit_dists.append(match_rev["edit_dist"])
+
+        return fwd_edit_dists, rev_edit_dists
 
     def __del__(self):
         """Ensure file is closed when object is garbage collected."""
         self.close()
+
+    def patterns_changed(self):
+        self.pattern_time = time.time()
+        self.segment_cache.clear()
 
 
 def revcomp(seq: str) -> str:
