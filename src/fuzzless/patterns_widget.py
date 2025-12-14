@@ -31,12 +31,12 @@ class PatternsWidget(Widget, can_focus=True):
     """Display a greeting."""
 
     BINDINGS = [
-        ("q", "quit", "quit   "),
-        Binding("space", "edit_pattern", "edit   "),
+        ("q", "quit", "quit"),
+        Binding("space", "edit_pattern", "edit"),
         Binding("ctrl+a", "add_pattern", "add", priority=True),
-        Binding("ctrl+d", "delete_pattern", "delete   ", priority=True),
-        Binding("ctrl+e", "export", "export", priority=True),
-        ("ctrl+i", "import", "import   "),
+        Binding("ctrl+d", "delete_pattern", "delete  │ ", priority=True),
+        ("ctrl+i", "import", "import"),
+        Binding("ctrl+e", "export", "export  │ "),
         ("tab", "next_tab", "next tab"),
     ]
 

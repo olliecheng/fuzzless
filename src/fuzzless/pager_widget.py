@@ -45,16 +45,17 @@ class PagerWidget(Widget, can_focus=True):
     """
 
     BINDINGS = [
-        ("q", "quit", "quit"),
+        ("q", "quit", "quit  │ "),
         ("up", "cursor_up", ""),
         ("down", "cursor_down", ""),
         ("ctrl+d", "pg_down", "↓↓"),
-        ("ctrl+u", "pg_up", "↑↑"),
+        ("ctrl+u", "pg_up", "↑↑  │ "),
         Binding(
             "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
         ),
-        Binding("space", "toggle_fold", "fold         "),
-        Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
+        Binding("space", "toggle_fold", "fold"),
+        Binding("ctrl+space", "toggle_all_folds", "", show=False),
+        Binding("i", "show_info", "info  │ "),
         Binding("j", "cursor_down", "cursor down", show=False),
         Binding("k", "cursor_up", "cursor up", show=False),
         Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
@@ -174,17 +175,6 @@ class PagerWidget(Widget, can_focus=True):
 
         self.refresh()
 
-    def refresh_lines(self, start: int, end: int) -> None:
-        """Refresh a range of lines.
-
-        Args:
-            start: Start line number (inclusive)
-            end: End line number (exclusive)
-        """
-        # Request a full refresh to update the display
-        # This could be optimized in the future for better performance
-        self.refresh()
-
     def revcomp(self) -> None:
         """Reverse complement the selected read."""
         cursor_pos = self.file_reader.virtual_loc_change(
@@ -214,3 +204,9 @@ class PagerWidget(Widget, can_focus=True):
 
     def action_pg_up(self) -> None:
         self.scroll_by(-((self.size.height - 3) // 2), move_cursor=False)
+
+    def action_show_info(self) -> None:
+        self.file_reader.show_info = not self.file_reader.show_info
+
+        self.file_reader.clear_cache()
+        self.refresh()

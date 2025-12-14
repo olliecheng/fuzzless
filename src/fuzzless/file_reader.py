@@ -80,10 +80,12 @@ class FileReader:
         self.total_reads: Optional[int] = None
         self.pattern_time = time.time()
 
+        self.show_info = False
+
     def rerender(self, new_width: int):
         """Rerender the file with a new width."""
         self.width = new_width - 9
-        self.segment_cache.clear()
+        self.clear_cache()
 
     def render_read(self, read_id: int) -> list[list[Segment]]:
         """Render a specific read ID into segments."""
@@ -253,7 +255,13 @@ class FileReader:
         patterns = self.app.patterns.patterns
 
         length = len(read)
-        line = [Segment(read)]
+
+        if self.show_info:
+            base_style = Style(color="bright_black", bgcolor="black")
+        else:
+            base_style = Style(color="bright_white", bgcolor="black")
+
+        line = [Segment(read, base_style)]
         if not patterns:
             return
 
@@ -276,9 +284,12 @@ class FileReader:
                     end = match["end"]
                     edit_dist = match["edit_dist"]
 
-                    match_results_text = f"{pattern_label}:{edit_dist}:"
-                    match_results_seg = Segment(match_results_text, Style(reverse=True))
-                    info_labels.append((start, match_results_seg))
+                    if self.show_info:
+                        info_label_segment = Segment(
+                            ("→" if fwd else "←") + f"{pattern_label}:{edit_dist}:",
+                            Style(color="black", bgcolor="bright_white"),
+                        )
+                        info_labels.append((start, info_label_segment))
 
                     [a, h, b] = Segment.divide(line, [start, end, length])
 
@@ -289,7 +300,7 @@ class FileReader:
 
                     h_new = Segment.apply_style(
                         h,
-                        Style(
+                        post_style=Style(
                             color=colour_rich,
                             reverse=fwd,
                         ),
@@ -339,6 +350,9 @@ class FileReader:
 
     def patterns_changed(self):
         self.pattern_time = time.time()
+        self.clear_cache()
+
+    def clear_cache(self):
         self.segment_cache.clear()
 
 
