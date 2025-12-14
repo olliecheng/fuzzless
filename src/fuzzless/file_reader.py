@@ -339,7 +339,8 @@ class FileReader:
 
             if match_fwd is not None:
                 fwd_edit_dists.append(match_fwd["edit_dist"])
-            elif match_rev is not None:
+
+            if match_rev is not None:
                 rev_edit_dists.append(match_rev["edit_dist"])
 
         return fwd_edit_dists, rev_edit_dists
