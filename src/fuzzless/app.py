@@ -18,7 +18,8 @@ from textual.containers import Vertical, VerticalGroup, HorizontalGroup
 
 from fuzzless.file_reader import FileReader
 from fuzzless.pager_widget import PagerWidget
-from fuzzless.patterns_widget import PatternsWidget, ConfigurePattern, ExportCSV
+from fuzzless.patterns_widget import PatternsWidget
+from fuzzless.patterns_modal import ConfigurePatternModal, ExportCSVModal
 from fuzzless.presets_widget import PresetsWidget
 from fuzzless.vertical_tabs import UpsideDownTabs, BottomTabbedContent
 
@@ -50,7 +51,7 @@ class FuzzlessApp(App):
 
     BINDINGS = [Binding("q", "quit", "quit", priority=True)]
 
-    SCREENS = {"configure": ConfigurePattern, "export_csv": ExportCSV}
+    SCREENS = {"configure": ConfigurePatternModal, "export_csv": ExportCSVModal}
 
     def __init__(self, filepath: str):
         """Initialize the app with a file path.
