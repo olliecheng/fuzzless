@@ -53,14 +53,20 @@ class PagerWidget(Widget, can_focus=True):
         Binding(
             "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
         ),
-        Binding("space", "toggle_fold", "fold"),
-        Binding("ctrl+space", "toggle_all_folds", "", show=False),
+        # Binding("space", "toggle_fold", "fold"),
+        # Binding("ctrl+space", "toggle_all_folds", "", show=False),
+        Binding("g", "go_to_read", "goto"),
+        Binding("/", "search_fwd", "search →"),
         Binding("i", "show_info", "info  │ "),
         Binding("j", "cursor_down", "cursor down", show=False),
         Binding("k", "cursor_up", "cursor up", show=False),
         Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
         ("tab", "next_tab", "next tab"),
     ]
+
+    def action_go_to_read(self) -> None:
+        """Open the go to read modal."""
+        self.app.push_screen("go_to_read")
 
     viewport_loc = var(ReadLineLocation(0, 0))
     cursor_loc = var(0)
@@ -141,7 +147,8 @@ class PagerWidget(Widget, can_focus=True):
                 bgcolor="grey23" if line_loc.read % 2 else "grey0",
             )
 
-        line_number_segment = Segment(f"{line_loc.read:>6}", line_style)
+        read_number = line_loc.read + 1  # display 1-indexed line numbers
+        line_number_segment = Segment(f"{read_number:>6}", line_style)
 
         return Strip([line_number_segment, *content_segments])
 

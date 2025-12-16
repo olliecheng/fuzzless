@@ -189,7 +189,8 @@ class FileReader:
 
         if to_read_id < 0:
             raise IndexError("Read ID cannot be negative.")
-        if to_read_id > 100000:
+        # disable this
+        if to_read_id > 100000 and False:
             raise IndexError("File size limit reached")
         if self.total_reads is not None and to_read_id >= self.total_reads:
             raise IndexError("No more reads left in file")

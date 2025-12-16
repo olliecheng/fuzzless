@@ -198,9 +198,8 @@ class ExportCSVModal(ModalScreen):
         if event.button.id == "export":
             self.export_to_csv()
 
-    def on_key(self, event: Key) -> None:
-        if event.key == "enter":
-            self.export_to_csv()
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.export_to_csv()
 
     def export_to_csv(self):
         patterns = self.app.patterns.patterns
@@ -324,9 +323,8 @@ class ImportCSVModal(ModalScreen):
         if event.button.id == "import":
             self.import_from_csv()
 
-    def on_key(self, event: Key) -> None:
-        if event.key == "enter":
-            self.import_from_csv()
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.import_from_csv()
 
     def import_from_csv(self):
         import csv

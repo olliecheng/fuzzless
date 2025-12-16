@@ -24,6 +24,7 @@ from fuzzless.patterns_modal import (
     ExportCSVModal,
     ImportCSVModal,
 )
+from fuzzless.pager_modal import GoToReadModal
 from fuzzless.presets_widget import PresetsWidget
 from fuzzless.vertical_tabs import UpsideDownTabs, BottomTabbedContent
 
@@ -53,12 +54,16 @@ class FuzzlessApp(App):
     }
     """
 
-    BINDINGS = [Binding("q", "quit", "quit  │ ", priority=True)]
+    BINDINGS = [
+        Binding("q", "quit", "quit  │ ", priority=True),
+        Binding("ctrl+c", "quit", show=False),
+    ]
 
     SCREENS = {
         "configure": ConfigurePatternModal,
         "export_csv": ExportCSVModal,
         "import_csv": ImportCSVModal,
+        "go_to_read": GoToReadModal,
     }
 
     def __init__(self, filepath: str):
