@@ -14,6 +14,8 @@ from dataclasses import dataclass
 import edlib
 from functools import lru_cache
 
+from fuzzless.io import FastxIo, Record
+
 
 @dataclass
 class ReadLineLocation:
@@ -22,49 +24,24 @@ class ReadLineLocation:
     type: Literal["data", "eof", "start"] = "data"
 
 
-@dataclass
-class Record:
-    seq: str
-    qual: list[int]
-    id: str
-    direction: Literal["fwd", "rev"]
-    last_checked_direction: int
-    folded: bool = False
-
-
 FileEOF = Literal["eof"]
 revcomp_lookup = str.maketrans("ACGTacgt", "TGCAtgca")
 
+# fmt: off
 _IUPAC_EQUALITIES = [
-    ("R", "A"),
-    ("R", "G"),
-    ("K", "G"),
-    ("K", "T"),
-    ("S", "G"),
-    ("S", "C"),
-    ("Y", "C"),
-    ("Y", "T"),
-    ("M", "A"),
-    ("M", "C"),
-    ("W", "A"),
-    ("W", "T"),
-    ("B", "C"),
-    ("B", "G"),
-    ("B", "T"),
-    ("H", "A"),
-    ("H", "C"),
-    ("H", "T"),
-    ("?", "A"),
-    ("?", "C"),
-    ("?", "G"),
-    ("?", "T"),
-    ("D", "A"),
-    ("D", "G"),
-    ("D", "T"),
-    ("V", "A"),
-    ("V", "C"),
-    ("V", "G"),
+    ("R", "A"), ("R", "G"),
+    ("K", "G"), ("K", "T"),
+    ("S", "G"), ("S", "C"),
+    ("Y", "C"), ("Y", "T"),
+    ("M", "A"), ("M", "C"),
+    ("W", "A"), ("W", "T"),
+    ("B", "C"), ("B", "G"), ("B", "T"),
+    ("H", "A"), ("H", "C"), ("H", "T"),
+    ("?", "A"), ("?", "C"), ("?", "G"), ("?", "T"),
+    ("D", "A"), ("D", "G"), ("D", "T"),
+    ("V", "A"), ("V", "C"), ("V", "G"),
 ]
+# fmt: on
 
 
 def soft_wrap_line(line: list[Segment], width: int) -> list[list[Segment]]:
@@ -98,18 +75,22 @@ class FileReader:
         self.app = app
         self.filepath = Path(filepath)
 
-        self._file = open(self.filepath, "r")
-        self.read_buffer: list[Record] = []
+        self._io = FastxIo(str(self.filepath))
 
         self.width = 80
 
         self.read_types = {}
         self.segment_cache = {}
 
-        self.total_reads: Optional[int] = None
         self.pattern_time = time.time()
 
         self.show_info = False
+
+        self._manual_revcomp: set[int] = set()
+
+    @property
+    def total_reads(self) -> Optional[int]:
+        return self._io.total_reads
 
     def rerender(self, new_width: int):
         """Rerender the file with a new width."""
@@ -122,15 +103,20 @@ class FileReader:
         # add to cache if not already present
         if read_id not in self.segment_cache:
             # do we need to check if the patterns have changed?
-            rec = self.read_buffer[read_id]
+            rec = self._io.get_read_from_idx(read_id)
+
+            # Re-apply manual revcomp if record was evicted and reloaded from disk
+            if read_id in self._manual_revcomp and rec.direction == "fwd":
+                self.revcomp_read(read_id, _manual=False)
 
             if rec.last_checked_direction != self.pattern_time:
                 rec.last_checked_direction = self.pattern_time
                 fw, rv = self.count_matches(rec)
 
                 # reverse complement is a better match, take the revcomp
-                if len(rv) > len(fw) or (len(rv) == len(fw) and sum(rv) < sum(fw)):
-                    self.revcomp_read(read_id)
+                if fw is not None and rv is not None:
+                    if len(rv) > len(fw) or (len(rv) == len(fw) and sum(rv) < sum(fw)):
+                        self.revcomp_read(read_id)
 
             seq_id = soft_wrap_line(
                 [Segment("@" + rec.id, Style(color="grey62", underline=True))],
@@ -205,55 +191,32 @@ class FileReader:
         return self.total_reads is not None and loc.read >= self.total_reads
 
     def fill_read_buf(self, to_read_id: int) -> None:
-        """Get a line by its 0-indexed read ID.
-
-        Returns cached line if available, otherwise reads from file.
+        """Ensure the read at to_read_id is indexable.
 
         Args:
-            line_num: 0-indexed line number
-
-        Returns:
-            The line content (without trailing newline)
+            to_read_id: 0-indexed read ID to scan up to
         """
-
         if to_read_id < 0:
             raise IndexError("Read ID cannot be negative.")
-        # disable this
-        if to_read_id > 100000 and False:
-            raise IndexError("File size limit reached")
         if self.total_reads is not None and to_read_id >= self.total_reads:
             raise IndexError("No more reads left in file")
+        self._io.scan_to(to_read_id)
 
-        for _ in range(to_read_id - len(self.read_buffer) + 1):
-            id = self._file.readline().rstrip("\n")[1:]
-
-            # empty string = EOF
-            if not id:
-                self.total_reads = len(self.read_buffer)
-                return
-
-            seq = self._file.readline().rstrip("\n")
-            self._file.readline()
-            qual = self._file.readline().rstrip("\n")
-
-            rec = Record(seq, qual, id, "fwd", last_checked_direction=0, folded=False)
-            self.read_buffer.append(rec)
-
-    def revcomp_read(self, read_id: int) -> None:
-        if read_id < 0 or read_id >= len(self.read_buffer):
-            raise IndexError("Read ID out of range.")
-
-        rec = self.read_buffer[read_id]
+    def revcomp_read(self, read_id: int, _manual: bool = True) -> None:
+        rec = self._io.get_read_from_idx(read_id)
         rec.seq = revcomp(rec.seq)
         rec.qual = rec.qual[::-1]
         rec.direction = "rev" if rec.direction == "fwd" else "fwd"
-
+        if _manual:
+            if read_id in self._manual_revcomp:
+                self._manual_revcomp.discard(read_id)
+            else:
+                self._manual_revcomp.add(read_id)
         self.segment_cache.pop(read_id, None)
 
     def close(self) -> None:
         """Close the file handle."""
-        if self._file and not self._file.closed:
-            self._file.close()
+        self._io.close()
 
     @lru_cache(maxsize=50000)
     def search(self, pattern: tuple[str, int], text: str) -> Optional[dict]:
@@ -290,7 +253,7 @@ class FileReader:
 
         line = [Segment(read, base_style)]
         if not patterns:
-            return
+            return line
 
         info_labels: list[tuple[int, Segment]] = []
 
@@ -301,7 +264,7 @@ class FileReader:
             to_search = (
                 [(True, pattern_seq)] + [(False, revcomp(pattern_seq))]
                 if pattern["revcomp"]
-                else []
+                else [(True, pattern_seq)]
             )
 
             for fwd, pattern_seq in to_search:
@@ -346,10 +309,10 @@ class FileReader:
 
         return line
 
-    def count_matches(self, rec: Record) -> tuple[list, list]:
+    def count_matches(self, rec: Record) -> Optional[tuple[list, list]]:
         patterns = self.app.patterns.patterns
         if not patterns:
-            return
+            return None
 
         # always start with the forward sequence
         read = rec.seq if rec.direction == "fwd" else revcomp(rec.seq)
