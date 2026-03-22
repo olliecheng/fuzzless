@@ -5,6 +5,8 @@ test.fastq
 large_test.fastq
 patterns.csv
 
+**/.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
