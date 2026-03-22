@@ -1,10 +1,12 @@
-"""Memory-mapped FASTQ I/O with lazy offset indexing and LRU record cache."""
+"""Memory-mapped FASTQ I/O with lazy sparse offset indexing and LRU record cache."""
 
 import mmap
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Optional
+
+_MARKER_INTERVAL = 500  # Store one byte-offset marker per this many reads
 
 
 @dataclass
@@ -20,8 +22,9 @@ class Record:
 class FastxIo:
     """Random-access FASTQ reader backed by mmap with a bounded LRU record cache.
 
-    Builds a byte-offset index lazily as reads are requested, so forward navigation
-    is zero-seek and backward navigation jumps directly to the stored offset.
+    Builds a sparse byte-offset index lazily: one marker is stored per
+    _MARKER_INTERVAL reads. To access an arbitrary read, the nearest lower-bound
+    marker is located and the file is scanned forward from there.
     """
 
     def __init__(self, filepath: str):
@@ -42,31 +45,44 @@ class FastxIo:
         return self._scan_to_internal(read_idx)
 
     def _scan_to_internal(self, read_idx: int) -> bool:
-        while len(self._offsets) <= read_idx:
+        marker_needed = read_idx // _MARKER_INTERVAL
+
+        while len(self._offsets) <= marker_needed:
             if self._total_reads is not None:
-                return False
+                return read_idx < self._total_reads
             if len(self._offsets) == 0:
                 if len(self._mmap) == 0:
                     self._total_reads = 0
                     return False
                 self._offsets.append(0)
                 continue
-            # Skip 4 lines from the last known offset to reach the next record start
-            pos = self._offsets[-1]
-            for _ in range(4):
-                nl = self._mmap.find(b"\n", pos)
-                if nl == -1:
-                    self._total_reads = len(self._offsets)
-                    return False
-                pos = nl + 1
+            # Scan _MARKER_INTERVAL reads forward from the last marker
+            last_marker_i = len(self._offsets) - 1
+            pos = self._offsets[last_marker_i]
+            base = last_marker_i * _MARKER_INTERVAL
+            for i in range(_MARKER_INTERVAL):
+                for _ in range(4):
+                    nl = self._mmap.find(b"\n", pos)
+                    if nl == -1:
+                        self._total_reads = base + i
+                        return read_idx < self._total_reads
+                    pos = nl + 1
             if pos >= len(self._mmap):
-                self._total_reads = len(self._offsets)
-                return False
+                self._total_reads = base + _MARKER_INTERVAL
+                return read_idx < self._total_reads
             self._offsets.append(pos)
+
         return True
 
     def _parse_record(self, read_idx: int) -> Record:
-        self._mmap.seek(self._offsets[read_idx])
+        marker_i = min(read_idx // _MARKER_INTERVAL, len(self._offsets) - 1)
+        pos = self._offsets[marker_i]
+        reads_to_skip = read_idx - marker_i * _MARKER_INTERVAL
+        for _ in range(reads_to_skip):
+            for _ in range(4):
+                nl = self._mmap.find(b"\n", pos)
+                pos = nl + 1
+        self._mmap.seek(pos)
         header = self._mmap.readline().rstrip(b"\n").decode()[1:]  # strip leading @
         seq = self._mmap.readline().rstrip(b"\n").decode()
         self._mmap.readline()  # skip + separator
