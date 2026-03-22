@@ -11,7 +11,7 @@ import time
 
 from dataclasses import dataclass
 
-import regex
+import edlib
 from functools import lru_cache
 
 
@@ -35,7 +35,36 @@ class Record:
 FileEOF = Literal["eof"]
 revcomp_lookup = str.maketrans("ACGTacgt", "TGCAtgca")
 
-pattern_regex = {}
+_IUPAC_EQUALITIES = [
+    ("R", "A"),
+    ("R", "G"),
+    ("K", "G"),
+    ("K", "T"),
+    ("S", "G"),
+    ("S", "C"),
+    ("Y", "C"),
+    ("Y", "T"),
+    ("M", "A"),
+    ("M", "C"),
+    ("W", "A"),
+    ("W", "T"),
+    ("B", "C"),
+    ("B", "G"),
+    ("B", "T"),
+    ("H", "A"),
+    ("H", "C"),
+    ("H", "T"),
+    ("?", "A"),
+    ("?", "C"),
+    ("?", "G"),
+    ("?", "T"),
+    ("D", "A"),
+    ("D", "G"),
+    ("D", "T"),
+    ("V", "A"),
+    ("V", "C"),
+    ("V", "G"),
+]
 
 
 def soft_wrap_line(line: list[Segment], width: int) -> list[list[Segment]]:
@@ -230,26 +259,23 @@ class FileReader:
     def search(self, pattern: tuple[str, int], text: str) -> Optional[dict]:
         pattern_str, max_edit_dist = pattern
 
-        if pattern not in pattern_regex:
-            if max_edit_dist == 0:
-                r = regex.compile(pattern_str, regex.IGNORECASE)
-            else:
-                r = regex.compile(
-                    "(?:" + pattern_str + "){e<=" + str(max_edit_dist) + "}",
-                    regex.BESTMATCH | regex.IGNORECASE,
-                )
+        result = edlib.align(
+            pattern_str.upper(),
+            text.upper(),
+            mode="HW",
+            task="locations",
+            k=max_edit_dist,
+            additionalEqualities=_IUPAC_EQUALITIES,
+        )
 
-            pattern_regex[pattern] = r
-        r = pattern_regex[pattern]
-
-        match = r.search(text)
-        if match is None:
+        if result["editDistance"] == -1:
             return None
 
+        start, end = result["locations"][0]
         return {
-            "start": match.span()[0],
-            "end": match.span()[1],
-            "edit_dist": sum(match.fuzzy_counts),
+            "start": start,
+            "end": end + 1,  # edlib end is inclusive; convert to exclusive
+            "edit_dist": result["editDistance"],
         }
 
     def highlight_read(self, read: str) -> list[Segment]:
@@ -320,7 +346,7 @@ class FileReader:
 
         return line
 
-    def count_matches(self, rec: Record) -> tuple[int, int]:
+    def count_matches(self, rec: Record) -> tuple[list, list]:
         patterns = self.app.patterns.patterns
         if not patterns:
             return
