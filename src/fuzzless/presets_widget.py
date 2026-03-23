@@ -10,20 +10,68 @@ from fuzzless.patterns_modal import PRESETS_DIR
 
 DEFAULT_PRESETS: dict[str, list[dict]] = {
     "10x3v3": [
-        {"label": "R1", "pattern": "CTACACGACGCTCTTCCGATCT", "colour": "lawngreen", "max_edit_dist": 2, "revcomp": True},
-        {"label": "PolyT", "pattern": "TTTTTTTTT", "colour": "deepskyblue", "max_edit_dist": 1, "revcomp": True},
+        {
+            "label": "R1",
+            "pattern": "CTACACGACGCTCTTCCGATCT",
+            "colour": "lawngreen",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
+        {
+            "label": "PolyT",
+            "pattern": "TTTTTTTTT",
+            "colour": "deepskyblue",
+            "max_edit_dist": 1,
+            "revcomp": True,
+        },
     ],
     "10x3v2": [
-        {"label": "R1", "pattern": "CTACACGACGCTCTTCCGATCT", "colour": "lawngreen", "max_edit_dist": 2, "revcomp": True},
-        {"label": "PolyT", "pattern": "TTTTTTTTT", "colour": "deepskyblue", "max_edit_dist": 1, "revcomp": True},
+        {
+            "label": "R1",
+            "pattern": "CTACACGACGCTCTTCCGATCT",
+            "colour": "lawngreen",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
+        {
+            "label": "PolyT",
+            "pattern": "TTTTTTTTT",
+            "colour": "deepskyblue",
+            "max_edit_dist": 1,
+            "revcomp": True,
+        },
     ],
     "10x5v2": [
-        {"label": "R1", "pattern": "CTACACGACGCTCTTCCGATCT", "colour": "lawngreen", "max_edit_dist": 2, "revcomp": True},
-        {"label": "TSO", "pattern": "TTTCTTATATGGG", "colour": "coral", "max_edit_dist": 2, "revcomp": True},
+        {
+            "label": "R1",
+            "pattern": "CTACACGACGCTCTTCCGATCT",
+            "colour": "lawngreen",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
+        {
+            "label": "TSO",
+            "pattern": "TTTCTTATATGGG",
+            "colour": "coral",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
     ],
     "10x_atac": [
-        {"label": "Read1", "pattern": "ACCGAGATCTACAC", "colour": "lawngreen", "max_edit_dist": 2, "revcomp": True},
-        {"label": "Tn5", "pattern": "CGCGTCTGTCGTCGGCAGCGTCAGATGTGTATAAGAGACAG", "colour": "coral", "max_edit_dist": 2, "revcomp": True},
+        {
+            "label": "Read1",
+            "pattern": "ACCGAGATCTACAC",
+            "colour": "lawngreen",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
+        {
+            "label": "Tn5",
+            "pattern": "CGCGTCTGTCGTCGGCAGCGTCAGATGTGTATAAGAGACAG",
+            "colour": "coral",
+            "max_edit_dist": 2,
+            "revcomp": True,
+        },
     ],
 }
 
@@ -44,6 +92,7 @@ class PresetsWidget(Widget, can_focus=True):
         background: black;
         height: 1fr;
         border-bottom: blank;
+        max-width: 30;
     }
 
     ListItem {

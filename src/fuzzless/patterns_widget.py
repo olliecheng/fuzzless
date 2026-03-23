@@ -37,7 +37,7 @@ class PatternsWidget(Widget, can_focus=True):
         Binding("ctrl+d", "delete_pattern", "delete  │ ", priority=True),
         ("ctrl+i", "import", "import"),
         Binding("ctrl+e", "export", "export  │ "),
-        ("tab", "next_tab", "next tab"),
+        # ("tab", "next_tab", "next tab"),
     ]
 
     DEFAULT_CSS = """
