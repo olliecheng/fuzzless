@@ -121,7 +121,7 @@ class ConfigurePatternModal(ModalScreen):
 
     def save_changes(self):
         patterns_list = self.app.patterns.patterns_list
-        print("launch")
+
         index = patterns_list.index
 
         self.app.patterns.update_pattern(
@@ -182,7 +182,6 @@ class ExportCSVModal(ModalScreen):
         self.filepath_input = Input(
             id="filepath", value="patterns.csv", placeholder="~/patterns.csv"
         )
-        self.filepath_input.on_key = self.on_key
 
         yield Grid(
             Label("Export to CSV file"),
@@ -303,7 +302,6 @@ class ImportCSVModal(ModalScreen):
         self.filepath_input = Input(
             id="filepath", value="patterns.csv", placeholder="patterns.csv"
         )
-        self.filepath_input.on_key = self.on_key
 
         yield Grid(
             Label("Import from CSV file"),
@@ -357,7 +355,6 @@ class ImportCSVModal(ModalScreen):
                     if row["revcomp"] not in ["true", "false"]:
                         raise Exception("revcomp must be true or false")
 
-                    print("R", row)
 
                     pattern = {
                         "label": row["label"],

@@ -56,7 +56,7 @@ class PagerWidget(Widget, can_focus=True):
         # Binding("space", "toggle_fold", "fold"),
         # Binding("ctrl+space", "toggle_all_folds", "", show=False),
         Binding("g", "go_to_read", "goto"),
-        Binding("/", "search_fwd", "search →"),
+        # Binding("/", "search_fwd", "search"),
         Binding("i", "show_info", "info  │ "),
         Binding("j", "cursor_down", "cursor down", show=False),
         Binding("k", "cursor_up", "cursor up", show=False),
