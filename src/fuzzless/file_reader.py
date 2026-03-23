@@ -119,7 +119,7 @@ class FileReader:
                         self.revcomp_read(read_id)
 
             seq_id = soft_wrap_line(
-                [Segment("@" + rec.id, Style(color="grey62", underline=True))],
+                [Segment(("@" + rec.id).expandtabs(8), Style(color="grey62", underline=True))],
                 self.width,
             )
 
