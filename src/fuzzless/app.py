@@ -23,6 +23,7 @@ from fuzzless.patterns_modal import (
     ConfigurePatternModal,
     ExportCSVModal,
     ImportCSVModal,
+    SavePresetModal,
 )
 from fuzzless.pager_modal import GoToReadModal
 from fuzzless.presets_widget import PresetsWidget
@@ -63,6 +64,7 @@ class FuzzlessApp(App):
         "configure": ConfigurePatternModal,
         "export_csv": ExportCSVModal,
         "import_csv": ImportCSVModal,
+        "save_preset": SavePresetModal,
         "go_to_read": GoToReadModal,
     }
 

@@ -1,8 +1,12 @@
+from pathlib import Path
+
 from textual.app import ComposeResult
 from textual.widgets import Input, Button, Checkbox, Label
 from textual.containers import Grid
 from textual.events import Key
 from textual.screen import ModalScreen
+
+PRESETS_DIR = Path("~/.config/fuzzless/presets").expanduser()
 
 
 class ConfigurePatternModal(ModalScreen):
@@ -378,3 +382,96 @@ class ImportCSVModal(ModalScreen):
             )
         except Exception as e:
             self.app.notify(f"Import failed: {str(e)}", severity="error", timeout=10.0)
+
+
+class SavePresetModal(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+
+    DEFAULT_CSS = """
+    SavePresetModal {
+        align: center middle;
+    }
+
+    #dialog {
+        padding: 0 1;
+        width: 45;
+        height: 11;
+        border: thick lightseagreen 80%;
+        background: darkslategray;
+
+        grid-size: 2;
+        grid-columns: 15 30;
+        grid-rows: 3 4 3;
+
+        content-align: center top;
+    }
+
+    Label {
+        padding: 1 1;
+        text-style: bold;
+        column-span: 2;
+    }
+
+    Input {
+        margin: 0;
+        width: 41 !important;
+        padding: 0;
+        column-span: 2;
+    }
+
+    Button {
+        margin-left: 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        self.name_input = Input(id="name", placeholder="my-preset")
+
+        yield Grid(
+            Label("Save preset as"),
+            self.name_input,
+            Button("Save", variant="primary", id="save"),
+            Button("Cancel", variant="error", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.app.pop_screen()
+        if event.button.id == "save":
+            self.save_preset()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.save_preset()
+
+    def save_preset(self):
+        import csv
+
+        name = self.name_input.value.strip()
+        if not name:
+            self.app.notify("Please enter a preset name", severity="error", timeout=3.0)
+            return
+
+        patterns = self.app.patterns.patterns
+        if not patterns:
+            self.app.pop_screen()
+            self.app.notify("No patterns to save", severity="warning", timeout=3.0)
+            return
+
+        try:
+            PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+            filepath = PRESETS_DIR / f"{name}.csv"
+
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=["label", "pattern", "colour", "max_edit_dist", "revcomp"],
+                )
+                writer.writeheader()
+                writer.writerows(patterns)
+
+            self.app.pop_screen()
+            self.app.notify(f"Saved preset '{name}'", severity="information", timeout=3.0)
+        except Exception as e:
+            self.app.pop_screen()
+            self.app.notify(f"Save failed: {str(e)}", severity="error", timeout=5.0)
