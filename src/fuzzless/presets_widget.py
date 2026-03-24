@@ -2,9 +2,10 @@ import csv
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Vertical, Horizontal
+from textual.events import Key
 from textual.widget import Widget
-from textual.widgets import Footer, Label, ListItem, ListView
+from textual.widgets import Button, Label, ListItem, ListView
 
 from fuzzless.patterns_modal import PRESETS_DIR
 
@@ -76,61 +77,64 @@ DEFAULT_PRESETS: dict[str, list[dict]] = {
 }
 
 
-class PresetsWidget(Widget, can_focus=True):
+class PresetsWidget(Widget):
     BINDINGS = [
         ("q", "quit", "quit"),
         Binding("space", "load_preset", "load preset"),
-        ("tab", "next_tab", "next tab"),
     ]
 
     DEFAULT_CSS = """
     PresetsWidget {
-        background: black;
+        background: black !important;
     }
 
-    ListView {
+    PresetsWidget ListView {
         background: black;
         height: 1fr;
-        border-bottom: blank;
-        max-width: 30;
+        border: blank;
+        padding: 0 1;
     }
 
-    ListItem {
+    PresetsWidget ListView:focus {
+        border: round white;
+    }
+
+    PresetsWidget ListItem {
         background: black !important;
         border: blank;
 
         &.-highlight {
             background: black !important;
             text-style: none !important;
-            border: heavy lightseagreen;
+            border: blank;
         }
     }
 
-    ListItem.action-item {
-        background: darkslategray !important;
-        border: blank;
-
-        &.-highlight {
-            background: darkslategray !important;
-            text-style: none !important;
-            border: heavy lightseagreen;
-        }
+    PresetsWidget ListView:focus ListItem.-highlight {
+        border: round lightseagreen;
     }
 
-    Label {
+    PresetsWidget Label {
         padding: 0 2;
     }
 
-    .config-path {
-        color: gray;
-        padding: 0 2;
+    PresetsWidget .preset-actions {
         height: auto;
+        background: black;
+    }
+
+    PresetsWidget Button {
+        # height: 1;
+        # min-width: 1;
+        width: 1fr;
+        margin: 0 1 1 1;
+        # border: none;
+        # padding: 0 1;
     }
     """
 
-    def __init__(self, next_tab):
+    def __init__(self):
         super().__init__()
-        self.action_next_tab = next_tab
         self.presets_list = None
         self._preset_names: list[str] = []
 
@@ -139,11 +143,11 @@ class PresetsWidget(Widget, can_focus=True):
 
         with Vertical():
             yield self.presets_list
-            yield Label(str(PRESETS_DIR), classes="config-path")
-        yield Footer(show_command_palette=False, compact=True)
-
-    def on_resize(self) -> None:
-        self.styles.height = self.app.size.height - 2
+            with Vertical(classes="preset-actions"):
+                with Horizontal(classes="preset-actions"):
+                    yield Button("Import CSV", variant="warning", id="btn-import")
+                    yield Button("Export CSV", variant="success", id="btn-export")
+                yield Button("Save as preset", variant="primary", id="btn-save")
 
     def on_mount(self) -> None:
         self.refresh_presets()
@@ -155,6 +159,31 @@ class PresetsWidget(Widget, can_focus=True):
         out = super()._on_show(event)
         self.presets_list.focus()
         return out
+
+    def on_key(self, event: Key) -> None:
+        if event.key not in ("tab", "shift+tab"):
+            return
+        focused = self.app.focused
+        chain = [
+            self.presets_list,
+            self.query_one("#btn-import"),
+            self.query_one("#btn-export"),
+            self.query_one("#btn-save"),
+        ]
+        if focused not in chain:
+            return
+        event.stop()
+        idx = chain.index(focused)
+        if event.key == "tab":
+            if idx < len(chain) - 1:
+                chain[idx + 1].focus()
+            else:
+                self.app.patterns.patterns_list.focus()
+        else:
+            if idx > 0:
+                chain[idx - 1].focus()
+            else:
+                self.app.patterns.patterns_list.focus()
 
     def refresh_presets(self) -> None:
         if self.presets_list is None or not self.presets_list.is_mounted:
@@ -174,28 +203,21 @@ class PresetsWidget(Widget, can_focus=True):
                 self.presets_list.append(ListItem(Label(csv_file.stem)))
                 self._preset_names.append(f"disk:{csv_file.stem}")
 
-        self.presets_list.append(
-            ListItem(Label("Import from CSV"), classes="action-item")
-        )
-        self.presets_list.append(
-            ListItem(Label("Export to CSV"), classes="action-item")
-        )
-        self.presets_list.append(
-            ListItem(Label("Save as preset"), classes="action-item")
-        )
+        if self._preset_names:
+            self.presets_list.index = 0
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         index = self.presets_list.index
-        if index is None:
+        if index is None or index >= len(self._preset_names):
             return
-        action_index = index - len(self._preset_names)
-        if action_index < 0:
-            self._load_preset_at(index)
-        elif action_index == 0:
+        self._load_preset_at(index)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-import":
             self.app.push_screen("import_csv")
-        elif action_index == 1:
+        elif event.button.id == "btn-export":
             self.app.push_screen("export_csv")
-        elif action_index == 2:
+        elif event.button.id == "btn-save":
             self.app.push_screen("save_preset")
 
     def action_load_preset(self) -> None:

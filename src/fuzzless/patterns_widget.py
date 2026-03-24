@@ -1,6 +1,5 @@
 from textual.widget import Widget
 from textual.widgets import (
-    Footer,
     ListView,
     ListItem,
     Label,
@@ -27,7 +26,7 @@ def get_default_colour(index: int) -> str:
     return DEFAULT_COLOURS[index % len(DEFAULT_COLOURS)]
 
 
-class PatternsWidget(Widget, can_focus=True):
+class PatternsWidget(Widget):
     """Display a greeting."""
 
     BINDINGS = [
@@ -35,19 +34,24 @@ class PatternsWidget(Widget, can_focus=True):
         Binding("space", "edit_pattern", "edit"),
         Binding("ctrl+a", "add_pattern", "add", priority=True),
         Binding("ctrl+d", "delete_pattern", "delete  │ ", priority=True),
-        ("ctrl+i", "import", "import"),
-        Binding("ctrl+e", "export", "export  │ "),
-        # ("tab", "next_tab", "next tab"),
+        ("tab", "focus_presets", ""),
+        ("shift+tab", "focus_presets_end", ""),
     ]
 
     DEFAULT_CSS = """
     PatternsWidget {
         background: black;
+        margin-right: 1;
     }
 
     ListView {
-        background: black;
-        border-bottom: blank;
+        background: black !important;
+        border: blank;
+        padding: 0 1;
+    }
+
+    ListView:focus {
+        border: round white;
     }
 
     ListItem {
@@ -57,8 +61,12 @@ class PatternsWidget(Widget, can_focus=True):
         &.-highlight {
             background: black !important;
             text-style: none !important;
-            border: heavy lightseagreen;
+            border: blank;
         }
+    }
+
+    ListView:focus ListItem.-highlight {
+        border: round lightseagreen;
     }
 
     Label {
@@ -66,18 +74,11 @@ class PatternsWidget(Widget, can_focus=True):
     }
     """
 
-    def __init__(self, next_tab):
+    def __init__(self):
         super().__init__()
-        self.action_next_tab = next_tab
         self.patterns_list = None
 
         self.patterns = []
-
-    def on_resize(self) -> None:
-        print(self.app.size.height)
-        # if self.patterns_list is not None:
-        # self.patterns_list.styles.height = self.app.size.height -
-        self.styles.height = self.app.size.height - 2
 
     def render_pattern(self, pattern: dict) -> str:
         colour = pattern["colour"]
@@ -135,11 +136,13 @@ class PatternsWidget(Widget, can_focus=True):
         with Vertical():
             # yield self.textarea
             yield self.patterns_list
-        yield Footer(show_command_palette=False, compact=True)
 
     def _on_show(self, event):
         out = super()._on_show(event)
-        self.query_one(ListView).focus()
+        lv = self.query_one(ListView)
+        lv.focus()
+        if lv.index is None and len(self.patterns) > 0:
+            lv.index = 0
         return out
 
     def action_edit_pattern(self) -> None:
@@ -177,3 +180,9 @@ class PatternsWidget(Widget, can_focus=True):
     def action_import(self) -> None:
         """Import patterns from CSV file."""
         self.app.push_screen("import_csv")
+
+    def action_focus_presets(self) -> None:
+        self.app.presets.presets_list.focus()
+
+    def action_focus_presets_end(self) -> None:
+        self.app.presets.query_one("#btn-save").focus()

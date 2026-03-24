@@ -7,6 +7,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import (
     Footer,
+    Label,
     Tab,
     Tabs,
     ContentSwitcher,
@@ -14,7 +15,7 @@ from textual.widgets import (
     TabPane,
     Static,
 )
-from textual.containers import Vertical, VerticalGroup, HorizontalGroup
+from textual.containers import Vertical, Horizontal, VerticalGroup, HorizontalGroup
 
 from fuzzless.file_reader import FileReader
 from fuzzless.pager_widget import PagerWidget
@@ -24,6 +25,7 @@ from fuzzless.patterns_modal import (
     ExportCSVModal,
     ImportCSVModal,
     SavePresetModal,
+    PRESETS_DIR,
 )
 from fuzzless.pager_modal import GoToReadModal
 from fuzzless.presets_widget import PresetsWidget
@@ -35,7 +37,7 @@ class FuzzlessApp(App):
 
     CSS = """
     FuzzlessApp {
-        background: black; 
+        background: black;
     }
     PagerWidget {
         width: 100%;
@@ -43,7 +45,7 @@ class FuzzlessApp(App):
     }
 
     Footer {
-        background: $boost;
+        background: midnightblue !important;
     }
 
     #tabs-list {
@@ -53,11 +55,41 @@ class FuzzlessApp(App):
     BottomTabbedContent {
         height: 100%;
     }
+
+    TabPane {
+        background: black;
+    }
+
+    TabPane > Vertical {
+        height: 1fr;
+    }
+
+    TabPane > Vertical > Horizontal {
+        height: 1fr;
+    }
+
+    PatternsWidget {
+        width: 1fr;
+        background: black !important;
+
+    }
+
+    PresetsWidget {
+        width: 35;
+        background: black !important;
+    }
+
+    .config-path {
+        color: gray;
+        padding: 0 0;
+        height: auto;
+    }
     """
 
     BINDINGS = [
-        Binding("q", "quit", "quit  │ ", priority=True),
+        Binding("q", "quit", "quit", priority=True),
         Binding("ctrl+c", "quit", show=False),
+        Binding("/", "next_tab", "config    "),
     ]
 
     SCREENS = {
@@ -83,24 +115,23 @@ class FuzzlessApp(App):
         """Create child widgets for the app."""
         self.content_pane = BottomTabbedContent()
 
-        next_tab_fn = self.content_pane.next_tab
-        self.pager = PagerWidget(self.file_reader, next_tab_fn)
-        self.patterns = PatternsWidget(next_tab_fn)
-        self.presets = PresetsWidget(next_tab_fn)
+        self.pager = PagerWidget(self.file_reader)
+        self.patterns = PatternsWidget()
+        self.presets = PresetsWidget()
 
         with self.content_pane:
             with TabPane("pager"):
                 yield self.pager
             with TabPane("patterns"):
-                yield self.patterns
-            with TabPane("presets"):
-                yield self.presets
+                with Vertical():
+                    with Horizontal():
+                        yield self.patterns
+                        yield self.presets
+                    yield Label(f"Presets: {PRESETS_DIR}", classes="config-path")
+                    yield Footer(show_command_palette=False, compact=True)
 
-        # yield UpsideDownTabs(
-        #     Tab("    reads    ", id="pager"),
-        #     Tab(" patterns ", id="patterns"),
-        #     Tab(" presets ", id="presets"),
-        # )
+    def action_next_tab(self) -> None:
+        self.content_pane.next_tab()
 
     def on_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle tab activation events to switch content.

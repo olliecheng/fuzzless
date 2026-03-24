@@ -45,23 +45,19 @@ class PagerWidget(Widget, can_focus=True):
     """
 
     BINDINGS = [
-        ("q", "quit", "quit  │ "),
+        ("q", "quit", "quit"),
+        Binding("/", "next_tab", "config    "),
         ("up", "cursor_up", ""),
         ("down", "cursor_down", ""),
         ("ctrl+d", "pg_down", "↓↓"),
-        ("ctrl+u", "pg_up", "↑↑  │ "),
+        ("ctrl+u", "pg_up", "↑↑    "),
         Binding(
             "r", "revcomp", "→revcomp←", tooltip="reverse complement selected read"
         ),
-        # Binding("space", "toggle_fold", "fold"),
-        # Binding("ctrl+space", "toggle_all_folds", "", show=False),
         Binding("g", "go_to_read", "goto"),
-        # Binding("/", "search_fwd", "search"),
-        Binding("i", "show_info", "info  │ "),
+        Binding("i", "show_info", "info"),
         Binding("j", "cursor_down", "cursor down", show=False),
         Binding("k", "cursor_up", "cursor up", show=False),
-        Binding("ctrl+space", "toggle_all_folds", "fold all", show=False),
-        ("tab", "next_tab", "next tab"),
     ]
 
     def action_go_to_read(self) -> None:
@@ -71,7 +67,7 @@ class PagerWidget(Widget, can_focus=True):
     viewport_loc = var(ReadLineLocation(0, 0))
     cursor_loc = var(0)
 
-    def __init__(self, file_reader: FileReader, next_tab):
+    def __init__(self, file_reader: FileReader):
         """Initialize the pager widget.
 
         Args:
@@ -79,7 +75,6 @@ class PagerWidget(Widget, can_focus=True):
         """
         super().__init__()
         self.file_reader = file_reader
-        self._next_tab = next_tab
 
     def compose(self):
         yield Footer(show_command_palette=False, compact=True)
@@ -195,9 +190,6 @@ class PagerWidget(Widget, can_focus=True):
     def action_cursor_up(self) -> None:
         """Move selection up."""
         self.scroll_by(-1)
-
-    def action_next_tab(self) -> None:
-        self._next_tab()
 
     def action_cursor_down(self) -> None:
         """Move selection down."""
