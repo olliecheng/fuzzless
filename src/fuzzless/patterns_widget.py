@@ -46,12 +46,12 @@ class PatternsWidget(Widget):
 
     ListView {
         background: black !important;
-        border: blank;
+        border: round royalblue;
         padding: 0 1;
     }
 
     ListView:focus {
-        border: round white;
+        border: heavy white;
     }
 
     ListItem {
@@ -66,11 +66,17 @@ class PatternsWidget(Widget):
     }
 
     ListView:focus ListItem.-highlight {
-        border: round lightseagreen;
+        border: heavy lightseagreen;
     }
 
     Label {
         padding: 0 2;
+    }
+
+    .column-header {
+        text-style: bold;
+        width: 1fr;
+        padding: 0 1;
     }
     """
 
@@ -134,6 +140,7 @@ class PatternsWidget(Widget):
             self.append_pattern(pattern)
 
         with Vertical():
+            yield Label("Patterns", classes="column-header")
             # yield self.textarea
             yield self.patterns_list
 

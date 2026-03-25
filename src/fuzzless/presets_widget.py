@@ -91,12 +91,13 @@ class PresetsWidget(Widget):
     PresetsWidget ListView {
         background: black;
         height: 1fr;
-        border: blank;
+        border: round royalblue;
         padding: 0 1;
+        margin-bottom: 1;
     }
 
     PresetsWidget ListView:focus {
-        border: round white;
+        border: heavy white;
     }
 
     PresetsWidget ListItem {
@@ -111,11 +112,17 @@ class PresetsWidget(Widget):
     }
 
     PresetsWidget ListView:focus ListItem.-highlight {
-        border: round lightseagreen;
+        border: heavy lightseagreen;
     }
 
     PresetsWidget Label {
         padding: 0 2;
+    }
+
+    PresetsWidget .column-header {
+        text-style: bold;
+        width: 1fr;
+        padding: 0 1;
     }
 
     PresetsWidget .preset-actions {
@@ -131,6 +138,10 @@ class PresetsWidget(Widget):
         # border: none;
         # padding: 0 1;
     }
+    
+    PresetsWidget Button:focus {
+        outline: hkey white;
+    }
     """
 
     def __init__(self):
@@ -142,6 +153,7 @@ class PresetsWidget(Widget):
         self.presets_list = ListView()
 
         with Vertical():
+            yield Label("Presets", classes="column-header")
             yield self.presets_list
             with Vertical(classes="preset-actions"):
                 with Horizontal(classes="preset-actions"):
@@ -205,12 +217,6 @@ class PresetsWidget(Widget):
 
         if self._preset_names:
             self.presets_list.index = 0
-
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        index = self.presets_list.index
-        if index is None or index >= len(self._preset_names):
-            return
-        self._load_preset_at(index)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-import":
